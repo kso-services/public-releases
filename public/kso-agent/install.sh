@@ -23,6 +23,7 @@ BINARY_DST="/usr/local/bin/kso-agent"
 CONFIG_DIR="/etc/kso-agent"
 ENV_FILE="${CONFIG_DIR}/kso-agent.env"
 SERVICE_DST="/etc/systemd/system/kso-agent.service"
+SUDOERS_DST="/etc/sudoers.d/kso-agent"
 
 # Agent token: --token <value> or TOKEN/token env var
 AGENT_TOKEN=""
@@ -67,6 +68,20 @@ if ! id -u kso-agent >/dev/null 2>&1; then
   echo "[kso] Creating kso-agent user..."
   useradd --system --no-create-home --shell /usr/sbin/nologin kso-agent
 fi
+
+# 1b. Grant the agent the minimal privileges it needs (LVM + service restart).
+# The agent runs as the unprivileged kso-agent user and prefixes these
+# commands with sudo (see src/handlers.js).
+echo "[kso] Installing sudoers rules to $SUDOERS_DST..."
+mkdir -p /etc/sudoers.d
+cat > "$SUDOERS_DST" <<'EOF'
+kso-agent ALL=(root) NOPASSWD: /usr/sbin/lvs
+kso-agent ALL=(root) NOPASSWD: /usr/sbin/vgs
+kso-agent ALL=(root) NOPASSWD: /usr/sbin/lvextend
+kso-agent ALL=(root) NOPASSWD: /bin/systemctl restart *
+EOF
+chmod 0440 "$SUDOERS_DST"
+visudo -cf "$SUDOERS_DST"
 
 # 2. Download the binary (latest release) from the public repo
 BINARY_URL="https://github.com/${RELEASES_REPO}/releases/latest/download/${BINARY_NAME}"
