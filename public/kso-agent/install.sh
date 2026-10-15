@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eu pipefail
 
 # ──────────────────────────────────────────────
 # KSO Agent Installer (distribution)
@@ -25,7 +25,7 @@ SERVICE_DST="/etc/systemd/system/kso-agent.service"
 # Agent token: --token <value> or TOKEN/token env var
 AGENT_TOKEN=""
 # API WebSocket URL (override via env)
-API_WSS_URL="${API_WSS_URL:-wss://supervision-api.kso-services.com/ws/agent}"
+API_WSS_URL="${API_WSS_URL}"
 
 # ── Parse arguments ──
 while [ $# -gt 0 ]; do
