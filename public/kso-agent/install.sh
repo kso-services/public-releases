@@ -1,16 +1,18 @@
-#!/bin/bash
-set -eu pipefail
+#!/bin/sh
+set -eu
 
 # ──────────────────────────────────────────────
 # KSO Agent Installer (distribution)
 # Downloads the kso-agent binary from the public releases repository
 # and installs it as a systemd service.
 #
+# POSIX-compatible (works with: curl ... | sh)
+#
 # Usage:
-#   curl -fsSL https://cdn.kso-services.com/kso-agent/install.sh | sudo sh -s -- --token <AGENT_TOKEN>
+#   curl -fsSL https://cdn.kso-services.com/install-agent.sh | sudo sh -s -- --token <AGENT_TOKEN>
 #   # or:
 #   export token=<AGENT_TOKEN>
-#   curl -fsSL https://cdn.kso-services.com/kso-agent/install.sh | sudo -E sh
+#   curl -fsSL https://cdn.kso-services.com/install-agent.sh | sudo -E sh
 # ──────────────────────────────────────────────
 
 # Public releases repository (binary source)
@@ -25,7 +27,7 @@ SERVICE_DST="/etc/systemd/system/kso-agent.service"
 # Agent token: --token <value> or TOKEN/token env var
 AGENT_TOKEN=""
 # API WebSocket URL (override via env)
-API_WSS_URL="${API_WSS_URL}"
+API_WSS_URL="${API_WSS_URL:-wss://supervision-api.kso-services.com/ws/agent}"
 
 # ── Parse arguments ──
 while [ $# -gt 0 ]; do
@@ -61,7 +63,7 @@ if [ -z "$AGENT_TOKEN" ]; then
 fi
 
 # 1. Create kso-agent user
-if ! id -u kso-agent &>/dev/null; then
+if ! id -u kso-agent >/dev/null 2>&1; then
   echo "[kso] Creating kso-agent user..."
   useradd --system --no-create-home --shell /usr/sbin/nologin kso-agent
 fi
@@ -72,9 +74,9 @@ CHECKSUM_URL="${BINARY_URL}.sha256"
 
 TMP_BIN="$(mktemp)"
 echo "[kso] Downloading ${BINARY_URL}..."
-if command -v curl &>/dev/null; then
+if command -v curl >/dev/null 2>&1; then
   curl -fsSL "$BINARY_URL" -o "$TMP_BIN"
-elif command -v wget &>/dev/null; then
+elif command -v wget >/dev/null 2>&1; then
   wget -qO "$TMP_BIN" "$BINARY_URL"
 else
   echo "[kso] ERROR: neither curl nor wget is available."
@@ -83,9 +85,9 @@ fi
 
 # Best-effort checksum verification
 TMP_SUM="$(mktemp)"
-if command -v curl &>/dev/null; then
+if command -v curl >/dev/null 2>&1; then
   curl -fsSL "$CHECKSUM_URL" -o "$TMP_SUM" 2>/dev/null || true
-elif command -v wget &>/dev/null; then
+elif command -v wget >/dev/null 2>&1; then
   wget -qO "$TMP_SUM" "$CHECKSUM_URL" 2>/dev/null || true
 fi
 
