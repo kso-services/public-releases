@@ -85,11 +85,18 @@ visudo -cf "$SUDOERS_DST"
 
 # ── Helpers ──
 # Download a URL to a destination file (curl preferred, wget fallback).
+#
+# Progress is deliberately NOT silenced: the agent binary is a ~126 MB SEAB
+# executable, and a silent download looks like a hang when this script is piped
+# to sh. `--progress-bar` (curl) / `--show-progress` (wget) emit progress even
+# when stdout is not a TTY.
 download() {
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$1" -o "$2"
+    curl --fail --location --show-error --progress-bar \
+      --retry 3 --retry-delay 2 --connect-timeout 20 \
+      "$1" -o "$2"
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$2" "$1"
+    wget --show-progress -O "$2" --timeout=20 --tries=3 "$1"
   else
     echo "[kso] ERROR: neither curl nor wget is available." >&2
     exit 1
@@ -102,8 +109,10 @@ CHECKSUM_URL="${BINARY_URL}.sha256"
 SIGNATURE_URL="${BINARY_URL}.sig"
 
 TMP_BIN="$(mktemp)"
-echo "[kso] Downloading ${BINARY_URL}..."
+echo "[kso] Downloading ${BINARY_URL} (this may take a while, ~126 MiB)..."
 download "$BINARY_URL" "$TMP_BIN"
+BIN_SIZE="$(wc -c < "$TMP_BIN" | tr -d ' ')"
+echo "[kso] Download complete (${BIN_SIZE} bytes)."
 
 # 2a. Checksum verification (fail-closed: abort if the checksum is missing or
 # does not match).
@@ -201,6 +210,9 @@ cat > "$ENV_FILE" <<EOF
 API_WSS_URL=${API_WSS_URL}
 API_AGENT_TOKEN=${AGENT_TOKEN}
 KSO_APP_ENV=production
+# The service allowlist (restart + log reading) is managed centrally from the
+# KSO supervision UI and pushed to the agent on authentication. It is NOT
+# configured here: the agent keeps a fail-closed local copy refreshed by the API.
 EOF
 chmod 600 "$ENV_FILE"
 chown root:root "$ENV_FILE"
