@@ -16,6 +16,7 @@ BINARY_DST="/usr/local/bin/kso-agent"
 CONFIG_DIR="/etc/kso-agent"
 SERVICE_NAME="kso-agent"
 SERVICE_DST="/etc/systemd/system/${SERVICE_NAME}.service"
+SUDOERS_DST="/etc/sudoers.d/kso-agent"
 AGENT_USER="kso-agent"
 
 # ── Require root ──
@@ -66,7 +67,13 @@ if [ -d "$CONFIG_DIR" ]; then
   rm -rf "$CONFIG_DIR"
 fi
 
-# 7. Remove the system user (and its private group if empty)
+# 7. Remove the sudoers rules (LVM + service restart privileges)
+if [ -f "$SUDOERS_DST" ]; then
+  echo "[kso] Removing sudoers rules $SUDOERS_DST..."
+  rm -f "$SUDOERS_DST"
+fi
+
+# 8. Remove the system user (and its private group if empty)
 if id -u "$AGENT_USER" >/dev/null 2>&1; then
   echo "[kso] Removing ${AGENT_USER} user..."
   userdel "$AGENT_USER" 2>/dev/null || true
